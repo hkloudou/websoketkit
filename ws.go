@@ -86,78 +86,36 @@ func (m *WebsocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-
-	/*
-		//Write Message
-		for {
-			if obj, ok := m.Connects.Load(ws); !ok {
-				return //No Session on Memory,deleted,jump to defer
-			} else if obj.(*ConnectData).NeedClose {
-				return //NeedClose,jump to defer to close
-			} else {
-				msg := Broadcast{Msg: WebsocketMessage{Message: ""}}
-
-				if obj.(*ConnectData).SessionID != "" {
-					//获取到imei 之前别发送消息吧
-					// = obj.Imei
-					m.Broadcasts <- msg
-				}
-			}
-
-			time.Sleep(time.Second * 4)
-		}
-	*/
 }
 
 //WriteMsg WriteMsg
-func (m *WebsocketHandler) WriteMsg(sessionID string) {
-	msg := Broadcast{Msg: "", SessionID: sessionID}
-	m.Broadcasts <- msg
+func (m *WebsocketHandler) WriteMsg(sessionID string, msg interface{}) {
+	go func() {
+		m.Broadcasts <- Broadcast{Msg: msg, SessionID: sessionID}
+	}()
 }
 
-//HandleWebsocketMessages 广播发送至页面
+//HandleWebsocketMessages
 func (m *WebsocketHandler) HandleWebsocketMessages() {
-	go func() {
-		for {
-			msg := <-m.Broadcasts
-			m.Connects.Range(func(con, data interface{}) bool {
-				if data.(*ConnectData).SessionID != msg.SessionID || msg.SessionID == "" {
-					return true //Continue Range
-				} else if data.(*ConnectData).NeedClose {
-					return true //Continue Range
-				} else {
-					err := con.(*websocket.Conn).WriteJSON(msg.Msg)
-					if err != nil {
-						con.(*websocket.Conn).Close()
-						data.(*ConnectData).NeedClose = true
-					} else {
-						data.(*ConnectData).LastSendAt = time.Now()
-					}
-				}
+	for {
+		msg := <-m.Broadcasts
+		m.Connects.Range(func(con, data interface{}) bool {
+			if data.(*ConnectData).SessionID != msg.SessionID || msg.SessionID == "" {
 				return true //Continue Range
-				//con.(*websocket.Conn).
-
-			})
-			/*
-				for con, data := range Connects {
-
-					if data.Imei != msg.Imei || msg.Imei == "" {
-						continue
-					}
-
-					if data.NeedClose {
-						continue
-					}
-					err := con.WriteJSON(msg.Msg)
-					if err != nil {
-						con.Close()
-						data.NeedClose = true
-					} else {
-						data.LastSendAt = time.Now()
-						logDevice(data)
-					}
+			} else if data.(*ConnectData).NeedClose {
+				return true //Continue Range
+			} else {
+				err := con.(*websocket.Conn).WriteJSON(msg.Msg)
+				if err != nil {
+					con.(*websocket.Conn).Close()
+					data.(*ConnectData).NeedClose = true
+				} else {
+					data.(*ConnectData).LastSendAt = time.Now()
 				}
-			*/
-		}
-	}()
+			}
+			return true //Continue Range
+			//con.(*websocket.Conn).
+
+		})
+	}
 }
