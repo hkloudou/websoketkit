@@ -36,6 +36,8 @@ func (m *WebsocketHandler) Init() {
 	}
 	m.Upgrader = upgrader
 	m.Broadcasts = make(chan Broadcast, 1)
+
+	go m.HandleWebsocketMessages()
 }
 
 //ServeHTTP Register websocket
@@ -49,9 +51,9 @@ func (m *WebsocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	//This defer to clear timeout connect
 	defer func() {
 		if obj, ok := m.Connects.Load(ws); !ok {
-			log.Println("Closed connect")
-		} else if obj.(*ConnectData).NeedClose == true {
 			log.Println("SessionID:", obj.(*ConnectData).SessionID, "Closed")
+		} else if obj.(*ConnectData).NeedClose == true {
+			log.Println("SessionID:", obj.(*ConnectData).SessionID, "NeedClose")
 		}
 		ws.Close()
 		m.Connects.Delete(ws)
@@ -79,6 +81,8 @@ func (m *WebsocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			} else if mt != 1 {
 				log.Println("mt:" + string(mt))
+			} else if mt == 1 && string(message) == "ping" {
+				m.WriteMsg(obj.(*ConnectData).SessionID, "pong")
 			} else if mt == 1 && !gjson.Valid(string(message)) {
 				log.Println("read:", "err format")
 			} else if mt == 1 && gjson.Get(string(message), "a").String() == "live" {
