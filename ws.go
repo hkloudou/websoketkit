@@ -11,15 +11,10 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-//WebsocketMessage WebsocketMessage
-type WebsocketMessage struct {
-	Message interface{} `json:"msg"`
-}
-
 //Broadcast Broadcast
 type Broadcast struct {
 	SessionID string
-	Msg       WebsocketMessage
+	Msg       interface{} `json:"msg"`
 }
 
 //WebsocketHandler WebsocketHandler
@@ -116,7 +111,7 @@ func (m *WebsocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 //WriteMsg WriteMsg
 func (m *WebsocketHandler) WriteMsg(sessionID string) {
-	msg := Broadcast{Msg: WebsocketMessage{Message: ""}, SessionID: sessionID}
+	msg := Broadcast{Msg: "", SessionID: sessionID}
 	m.Broadcasts <- msg
 }
 
@@ -127,9 +122,9 @@ func (m *WebsocketHandler) HandleWebsocketMessages() {
 			msg := <-m.Broadcasts
 			m.Connects.Range(func(con, data interface{}) bool {
 				if data.(*ConnectData).SessionID != msg.SessionID || msg.SessionID == "" {
-					return true
+					return true //Continue Range
 				} else if data.(*ConnectData).NeedClose {
-					return true
+					return true //Continue Range
 				} else {
 					err := con.(*websocket.Conn).WriteJSON(msg.Msg)
 					if err != nil {
@@ -139,7 +134,7 @@ func (m *WebsocketHandler) HandleWebsocketMessages() {
 						data.(*ConnectData).LastSendAt = time.Now()
 					}
 				}
-				return false
+				return true //Continue Range
 				//con.(*websocket.Conn).
 
 			})
