@@ -13,8 +13,9 @@ import (
 
 //Broadcast Broadcast
 type Broadcast struct {
-	SessionID string
-	Msg       interface{} `json:"msg"`
+	SessionID   string
+	ChannelName string
+	Msg         interface{} `json:"msg"`
 }
 
 //WebsocketHandler WebsocketHandler
@@ -63,11 +64,6 @@ func (m *WebsocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	data.SessionID = guid.String()
 	m.Connects.Store(ws, data)
 
-	/*
-		go func() {
-
-		}()*/
-
 	//Read message
 	for {
 		if obj, ok := m.Connects.Load(ws); !ok {
@@ -80,35 +76,64 @@ func (m *WebsocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				obj.(*ConnectData).NeedClose = true
 				return
 			} else if mt != 1 {
-				log.Println("mt:" + string(mt))
+				//log.Println("mt:" + string(mt))
 			} else if mt == 1 && string(message) == "ping" {
-				m.WriteMsg(obj.(*ConnectData).SessionID, "pong")
+				m.WriteMsgByID(obj.(*ConnectData).SessionID, "pong")
 			} else if mt == 1 && !gjson.Valid(string(message)) {
-				log.Println("read:", "err format")
-			} else if mt == 1 && gjson.Get(string(message), "a").String() == "live" {
+				//log.Println("read:", "err format")
+			} else if mt == 1 && gjson.Get(string(message), "action").String() == "sub" && gjson.Get(string(message), "channel").Exists() {
+				//log.Println("recive:", string(message))
+				data := &SubscriptionData{
+					SessionID: obj.(*ConnectData).SessionID,
+					Channel:   gjson.Get(string(message), "channel").String(),
+					Data:      "",
+				}
+				//log.Println("data:", data)
+				//log.Println("gjson.Get(string(message), \"channel\").String()", gjson.Get(string(message), "channel").String())
+				obj.(*ConnectData).Subscriptions.Store(gjson.Get(string(message), "channel").String(), data)
+			} else if mt == 1 && gjson.Get(string(message), "action").String() == "fun" {
 
 			}
 		}
 	}
 }
 
-//WriteMsg WriteMsg
-func (m *WebsocketHandler) WriteMsg(sessionID string, msg interface{}) {
+//WriteMsgByID WriteMsg
+func (m *WebsocketHandler) WriteMsgByID(sessionID string, msg interface{}) {
 	go func() {
 		m.Broadcasts <- Broadcast{Msg: msg, SessionID: sessionID}
 	}()
 }
 
-//HandleWebsocketMessages
+//WriteMsgByChannelName WriteMsg
+func (m *WebsocketHandler) WriteMsgByChannelName(channelName string, msg interface{}) {
+	go func() {
+		m.Broadcasts <- Broadcast{Msg: msg, ChannelName: channelName}
+	}()
+}
+
+//HandleWebsocketMessages HandleWebsocketMessages
 func (m *WebsocketHandler) HandleWebsocketMessages() {
+	//log.Println(" HandleWebsocketMessages")
+
 	for {
 		msg := <-m.Broadcasts
 		m.Connects.Range(func(con, data interface{}) bool {
-			if data.(*ConnectData).SessionID != msg.SessionID || msg.SessionID == "" {
+			if data.(*ConnectData).NeedClose {
+				//log.Println("HandleWebsocketMessages NeedClose")
 				return true //Continue Range
-			} else if data.(*ConnectData).NeedClose {
+			} else if data.(*ConnectData).SessionID != msg.SessionID && msg.SessionID != "" {
+				// if sessionid Exists,but diffrent.
+				//log.Println("sessionid: ", msg.SessionID, " Exists,but diffrent.")
 				return true //Continue Range
-			} else {
+			} else if _, ok := data.(*ConnectData).Subscriptions.Load(msg.ChannelName); !ok && msg.ChannelName != "" {
+				// if ChannelName Exists,but diffrent.
+				//log.Println("ChannelName: ", msg.ChannelName, " Exists,but diffrent.")
+
+				return true //Continue Range
+			} else if msg.SessionID != "" || msg.ChannelName != "" {
+				//sessionid or ChannelName Exists
+				//log.Println("sessionid or ChannelName Exists")
 				err := con.(*websocket.Conn).WriteJSON(msg.Msg)
 				if err != nil {
 					con.(*websocket.Conn).Close()
@@ -119,7 +144,6 @@ func (m *WebsocketHandler) HandleWebsocketMessages() {
 			}
 			return true //Continue Range
 			//con.(*websocket.Conn).
-
 		})
 	}
 }
