@@ -26,6 +26,7 @@ type WebsocketHandler struct {
 	Upgrader   websocket.Upgrader
 	Connects   sync.Map
 	Broadcasts chan Broadcast
+	Functions  chan FunctionData
 }
 
 //Init remenber
@@ -39,7 +40,7 @@ func (m *WebsocketHandler) Init() {
 	}
 	m.Upgrader = upgrader
 	m.Broadcasts = make(chan Broadcast, 512)
-
+	m.Functions = make(chan FunctionData)
 	go m.HandleWebsocketMessages()
 }
 
@@ -100,13 +101,14 @@ func (m *WebsocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					Parame:    nil,
 				}
 				//log.Println("func", data)
-				select {
-				case <-time.After(2 * time.Second):
-					log.Println("un deel func:", string(message))
-				case obj.(*ConnectData).Functions <- data:
-					log.Println("deel func:", string(message))
-				}
-
+				go func() {
+					select {
+					case <-time.After(200 * time.Millisecond):
+						log.Println("un deel func:", string(message), "please use<-m.Functions to recive function")
+					case m.Functions <- data:
+						log.Println("deel func:", string(message))
+					}
+				}()
 			}
 		}
 	}
