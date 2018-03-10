@@ -85,12 +85,13 @@ func (m *WebsocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			} else if mt == 1 && !gjson.Valid(string(message)) {
 				//log.Println("read:", "err format")
 			} else if mt == 1 && gjson.Get(string(message), "action").String() == "sub" && gjson.Get(string(message), "channel").Exists() {
-				//log.Println("recive:", string(message))
+
 				data := &SubscriptionData{
 					SessionID: obj.(*ConnectData).SessionID,
 					Channel:   gjson.Get(string(message), "channel").String(),
 					Data:      "",
 				}
+				//log.Println("sub:", data)
 				//log.Println("data:", data)
 				//log.Println("gjson.Get(string(message), \"channel\").String()", gjson.Get(string(message), "channel").String())
 				obj.(*ConnectData).Subscriptions.Store(gjson.Get(string(message), "channel").String(), data)
@@ -109,6 +110,8 @@ func (m *WebsocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						log.Println("deel func:", string(message))
 					}
 				}()
+			} else {
+				log.Println("unknow data:", string(message))
 			}
 		}
 	}
@@ -163,6 +166,7 @@ func (m *WebsocketHandler) HandleWebsocketMessages() {
 				//no seessionid and no channel name
 				return true
 			} else {
+				//log.Println("write:", msg)
 				//sessionid or ChannelName Exists
 				//log.Println("sessionid or ChannelName Exists")
 				err := con.(*websocket.Conn).WriteJSON(msg)
