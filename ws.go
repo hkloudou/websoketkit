@@ -55,9 +55,9 @@ func (m *WebsocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	//This defer to clear timeout connect
 	defer func() {
 		if obj, ok := m.Connects.Load(ws); !ok {
-			log.Println("SessionID:", obj.(*ConnectData).SessionID, "Closed")
+			//log.Println("SessionID:", obj.(*ConnectData).SessionID, "Closed")
 		} else if obj.(*ConnectData).NeedClose == true {
-			log.Println("SessionID:", obj.(*ConnectData).SessionID, "NeedClose")
+			//log.Println("SessionID:", obj.(*ConnectData).SessionID, "NeedClose")
 		}
 		ws.Close()
 		m.Connects.Delete(ws)
@@ -159,7 +159,7 @@ func (m *WebsocketHandler) HandleWebsocketMessages() {
 				// if not sessionid way ,ChannelName Exists,but this connect not subcription.
 				//log.Println("ChannelName: ", msg.ChannelName, " Exists,but diffrent.")
 				return true //Continue Range
-			} else if msg.SessionID == "" || msg.ChannelName == "" {
+			} else if msg.SessionID == "" && msg.ChannelName == "" {
 				//no seessionid and no channel name
 				return true
 			} else {
