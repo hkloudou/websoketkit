@@ -10,7 +10,7 @@ type ConnectData struct {
 	SessionID     string `json:"sessionid"`
 	NeedClose     bool   `json:"-"`
 	Subscriptions sync.Map
-	Functions     chan interface{}
+	Functions     chan FunctionData
 	OnlineAt      time.Time `json:"online_at"`
 	LastSendAt    time.Time `json:"lastsend_at"`
 }
