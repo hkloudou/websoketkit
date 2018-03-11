@@ -40,7 +40,7 @@ func (m *WebsocketHandler) Init() {
 	}
 	m.Upgrader = upgrader
 	m.Broadcasts = make(chan Broadcast, 512)
-	m.Functions = make(chan FunctionData)
+	m.Functions = make(chan FunctionData, 0)
 	go m.HandleWebsocketMessages()
 }
 
@@ -95,7 +95,7 @@ func (m *WebsocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				//log.Println("data:", data)
 				//log.Println("gjson.Get(string(message), \"channel\").String()", gjson.Get(string(message), "channel").String())
 				obj.(*ConnectData).Subscriptions.Store(gjson.Get(string(message), "channel").String(), data)
-			} else if mt == 1 && gjson.Get(string(message), "action").String() == "fun" && gjson.Get(string(message), "funcname").Exists() {
+			} else if mt == 1 && (gjson.Get(string(message), "action").String() == "fun" || gjson.Get(string(message), "action").String() == "func") && gjson.Get(string(message), "funcname").Exists() {
 				data := FunctionData{
 					SessionID: obj.(*ConnectData).SessionID,
 					FuncName:  gjson.Get(string(message), "funcname").String(),
@@ -104,11 +104,13 @@ func (m *WebsocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				//log.Println("func", data)
 				go func() {
 					select {
-					case <-time.After(200 * time.Millisecond):
-						log.Println("un deel func:", string(message), "please use<-m.Functions to recive function")
+
 					case m.Functions <- data:
-						log.Println("deel func:", string(message))
+						//log.Println("deel func:", string(message))
+					case <-time.After(1 * time.Second):
+						log.Println("un deel func:", string(message), "please use<-m.Functions to recive function")
 					}
+
 				}()
 			} else {
 				log.Println("unknow data:", string(message))
