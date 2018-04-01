@@ -80,42 +80,56 @@ func (m *WebsocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			} else if mt != 1 {
 				//log.Println("mt:" + string(mt))
-			} else if mt == 1 && string(message) == "ping" {
+			} else if html := string(message); 1 == 2 {
+
+			} else if html == "ping" {
 				m.WriteMsgByID(obj.(*ConnectData).SessionID, "system", "pong")
-			} else if mt == 1 && !gjson.Valid(string(message)) {
-				//log.Println("read:", "err format")
-			} else if mt == 1 && gjson.Get(string(message), "action").String() == "sub" && gjson.Get(string(message), "channel").Exists() {
-
-				data := &SubscriptionData{
-					SessionID: obj.(*ConnectData).SessionID,
-					Channel:   gjson.Get(string(message), "channel").String(),
-					Data:      "",
+			} else if !gjson.Valid(html) {
+				// 错误数据
+				log.Println("un valid data", html)
+			} else if gjson.Parse(html).IsArray() {
+				//log.Println("gjson.Parse(html).IsArray()", html)
+				for _, item := range gjson.Parse(html).Array() {
+					m.deelData(obj.(*ConnectData), item.String())
 				}
-				//log.Println("sub:", data)
-				//log.Println("data:", data)
-				//log.Println("gjson.Get(string(message), \"channel\").String()", gjson.Get(string(message), "channel").String())
-				obj.(*ConnectData).Subscriptions.Store(gjson.Get(string(message), "channel").String(), data)
-			} else if mt == 1 && (gjson.Get(string(message), "action").String() == "fun" || gjson.Get(string(message), "action").String() == "func") && gjson.Get(string(message), "funcname").Exists() {
-				data := FunctionData{
-					SessionID: obj.(*ConnectData).SessionID,
-					FuncName:  gjson.Get(string(message), "funcname").String(),
-					Parame:    nil,
-				}
-				//log.Println("func", data)
-				go func() {
-					select {
-
-					case m.Functions <- data:
-						//log.Println("deel func:", string(message))
-					case <-time.After(1 * time.Second):
-						log.Println("un deel func:", string(message), "please use<-m.Functions to recive function")
-					}
-
-				}()
 			} else {
-				log.Println("unknow data:", string(message))
+				//log.Println("m.deelData(obj.(*ConnectData), html)", html)
+				m.deelData(obj.(*ConnectData), html)
 			}
 		}
+	}
+}
+
+func (m *WebsocketHandler) deelData(connData *ConnectData, html string) {
+	//log.Println("deelData:", html)
+	if html == "ping" {
+		m.WriteMsgByID(connData.SessionID, "system", "pong")
+	} else if gjson.Get(html, "action").String() == "sub" && gjson.Get(html, "channel").Exists() {
+		data := &SubscriptionData{
+			SessionID: connData.SessionID,
+			Channel:   gjson.Get(html, "channel").String(),
+			Data:      "",
+		}
+		//log.Println("sub:", data)
+		//log.Println("data:", data)
+		//log.Println("gjson.Get(string(message), \"channel\").String()", gjson.Get(string(message), "channel").String())
+		connData.Subscriptions.Store(gjson.Get(html, "channel").String(), data)
+	} else if (gjson.Get(html, "action").String() == "fun" || gjson.Get(html, "action").String() == "func") && gjson.Get(html, "funcname").Exists() {
+		data := FunctionData{
+			SessionID: connData.SessionID,
+			FuncName:  gjson.Get(html, "funcname").String(),
+			Parame:    nil,
+		}
+		//log.Println("func", data)
+		go func() {
+			select {
+
+			case m.Functions <- data:
+				//log.Println("deel func:", string(message))
+			case <-time.After(1 * time.Second):
+				log.Println("un deel func:", html, "please use<-m.Functions to recive function")
+			}
+		}()
 	}
 }
 
