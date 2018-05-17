@@ -39,7 +39,7 @@ func (m *WebsocketHandler) Init() {
 		CheckOrigin: func(r *http.Request) bool { return true },
 	}
 	m.Upgrader = upgrader
-	m.Broadcasts = make(chan Broadcast, 512)
+	m.Broadcasts = make(chan Broadcast, 4096)
 	m.Functions = make(chan FunctionData, 0)
 	go m.HandleWebsocketMessages()
 }
