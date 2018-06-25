@@ -62,7 +62,7 @@ func (m *WebsocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ws.Close()
 		m.Connects.Delete(ws)
 	}()
-	guid, _ := uuid.NewV4()
+	guid := uuid.NewV4()
 	data := &ConnectData{OnlineAt: time.Now()}
 	data.SessionID = guid.String()
 	m.Connects.Store(ws, data)
