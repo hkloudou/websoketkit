@@ -4,5 +4,5 @@ package websoketkit
 type FunctionData struct {
 	SessionID string
 	FuncName  string
-	Parame    interface{}
+	Parame    map[string]interface{}
 }

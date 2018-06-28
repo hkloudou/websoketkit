@@ -1,6 +1,7 @@
 package websoketkit
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"sync"
@@ -120,7 +121,13 @@ func (m *WebsocketHandler) deelData(connData *ConnectData, html string) {
 			FuncName:  gjson.Get(html, "funcname").String(),
 			Parame:    nil,
 		}
-		//log.Println("func", data)
+
+		if gjson.Get(html, "parame").IsObject() {
+			v := make(map[string]interface{}, 0)
+			if err := json.Unmarshal([]byte(gjson.Get(html, "parame").String()), &v); err == nil {
+				data.Parame = v
+			}
+		}
 		go func() {
 			select {
 
