@@ -102,7 +102,6 @@ func (m *WebsocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (m *WebsocketHandler) deelData(connData *ConnectData, html string) {
-	//log.Println("deelData:", html)
 	if html == "ping" {
 		m.WriteMsgByID(connData.SessionID, "system", "pong")
 	} else if gjson.Get(html, "action").String() == "sub" && gjson.Get(html, "channel").Exists() {
@@ -111,9 +110,6 @@ func (m *WebsocketHandler) deelData(connData *ConnectData, html string) {
 			Channel:   gjson.Get(html, "channel").String(),
 			Data:      "",
 		}
-		//log.Println("sub:", data)
-		//log.Println("data:", data)
-		//log.Println("gjson.Get(string(message), \"channel\").String()", gjson.Get(string(message), "channel").String())
 		connData.Subscriptions.Store(gjson.Get(html, "channel").String(), data)
 	} else if (gjson.Get(html, "action").String() == "fun" || gjson.Get(html, "action").String() == "func") && gjson.Get(html, "funcname").Exists() {
 		data := FunctionData{
@@ -128,15 +124,18 @@ func (m *WebsocketHandler) deelData(connData *ConnectData, html string) {
 				data.Parame = v
 			}
 		}
-		go func() {
-			select {
+		if FireFunc(data) {
 
-			case m.Functions <- data:
-				//log.Println("deel func:", string(message))
-			case <-time.After(1 * time.Second):
-				log.Println("un deel func:", html, "please use<-m.Functions to recive function")
-			}
-		}()
+		} else {
+			go func() {
+				select {
+				case m.Functions <- data:
+					//log.Println("deel func:", string(message))
+				case <-time.After(1 * time.Second):
+					log.Println("un deel func:", html, "please use<-m.Functions to recive function")
+				}
+			}()
+		}
 	}
 }
 

@@ -7,7 +7,7 @@ type SubscriptionData struct {
 	Data      string `json:"data"`
 }
 
-//SubscriptionData SubscriptionData
+//SubscriptionRequest SubscriptionRequest
 type SubscriptionRequest struct {
 	Action  string `json:"action"`
 	Channel string `json:"channel"`
