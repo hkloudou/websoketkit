@@ -23,11 +23,12 @@ type Broadcast struct {
 
 //WebsocketHandler WebsocketHandler
 type WebsocketHandler struct {
-	Inited     bool
-	Upgrader   websocket.Upgrader
-	Connects   sync.Map
-	Broadcasts chan Broadcast
-	Functions  chan FunctionData
+	Inited      bool
+	Upgrader    websocket.Upgrader
+	Connects    sync.Map
+	Broadcasts  chan Broadcast
+	Functions   chan FunctionData
+	funcHandler sync.Map
 }
 
 //Init remenber
@@ -101,6 +102,22 @@ func (m *WebsocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//HandleFunc Handle Func
+func (m *WebsocketHandler) HandleFunc(funcName string, fun func(data FunctionData)) {
+	m.funcHandler.Store(funcName, fun)
+}
+
+//FireFunc fire the function
+func (m *WebsocketHandler) FireFunc(data FunctionData) bool {
+	if fun, found := m.funcHandler.Load(data.FuncName); found {
+		go func() {
+			fun.(func(data FunctionData))(data)
+		}()
+		return true
+	}
+	return false
+}
+
 func (m *WebsocketHandler) deelData(connData *ConnectData, html string) {
 	if html == "ping" {
 		m.WriteMsgByID(connData.SessionID, "system", "pong")
@@ -124,7 +141,7 @@ func (m *WebsocketHandler) deelData(connData *ConnectData, html string) {
 				data.Parame = v
 			}
 		}
-		if FireFunc(data) {
+		if m.FireFunc(data) {
 
 		} else {
 			go func() {
